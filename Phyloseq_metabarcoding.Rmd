@@ -1,0 +1,292 @@
+---
+title: "Sponges Phyloseq"
+author: "Antonia"
+date: "9 June 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#load packages
+library("phyloseq")
+library("ggplot2")
+library("dplyr")
+library("tidyr")
+library("tibble")
+library("readxl")
+library("readr")
+library("stringr")
+library("rmarkdown")
+library("yaml")
+library(UpSetR)
+library(vegan)
+library(scales)
+library(grid)
+library(reshape2)
+library(ggExtra)
+library(car)
+library("grid")
+library("ggplotify")
+```
+
+
+```{r}
+otu_mat<- read_excel("Otu Table.xlsx")
+otu_mat <- otu_mat %>%
+    tibble::column_to_rownames("Otu") 
+
+tax_mat <- read_excel("Tax.xlsx")
+tax_mat <- tax_mat %>% 
+    tibble::column_to_rownames("Otu")
+
+samples_df <- read_excel("Metadata.xlsx")
+  samples_df <- samples_df %>% 
+    tibble::column_to_rownames("Sample") 
+
+```
+
+```{r}
+#create Phyloseq
+ OTU = otu_table(otu_mat, taxa_are_rows = TRUE)
+ TAX = tax_table(as.matrix(tax_mat))
+ samples = sample_data(samples_df)
+  
+ Sponge <- phyloseq(OTU, TAX, samples)
+ 
+Sponge_2<- subset_samples(Sponge, Include=="yes")
+```
+
+```{r}
+#Normalize number of reads in each sample using median sequencing depth.
+ total = median(sample_sums(Sponge_2))
+ standf = function(x, t=total) round(t * (x / sum(x)))
+Sponge_2 = transform_sample_counts(Sponge_2, standf)
+```
+
+
+```{r}
+#specify color pallete
+library(RColorBrewer)
+# Define the number of colors you want
+nb.cols <- 18
+mycolors <- colorRampPalette(brewer.pal(12, "Paired"))(nb.cols)
+
+# Create a ggplot with 18 colors 
+# Use scale_fill_manual
+
+#Set theme
+theme_set(theme_bw())
+```
+
+
+```{r}
+#Total abundance Order
+  
+photo_abund <- filter_taxa(Sponge, function(x) sum(x > total*0.01) > 0, TRUE)
+photo_abund
+
+p <- plot_bar(photo_abund, x="Class", facet_grid = ~Sponge_species) 
+
+p + geom_bar(aes(fill=Class), stat="identity", position="stack") + theme(text = element_text(size=12),axis.text.x = element_text(angle=45, hjust=1)) + scale_fill_manual(values = mycolors) #+ ggsave(filename = "1702_allClass.pdf", width = 20, height = 7, dpi= 300)
+```
+
+
+```{r}
+#UpsR plot
+
+GP <- prune_taxa(taxa_sums(Sponge_2) > 0, Sponge_2 )
+ps2.rare <- rarefy_even_depth(GP)
+```
+
+
+```{r}
+ps2.venn <- merge_samples(ps2.rare, "Sponge_species", fun = sum)
+
+venn_obj <- as.data.frame(t(otu_table(ps2.venn)))
+venn_obj.binary <- sapply(venn_obj, function(x) ifelse(x > 0, 1, 0),
+                          USE.NAMES = T)
+rownames(venn_obj.binary) <- rownames(venn_obj)
+venn_obj.binary <- as.data.frame(venn_obj.binary)
+upset_order <- colnames(venn_obj.binary)
+shared_ASV_plot <- upset(venn_obj.binary, nsets = 6,
+      sets = rev(upset_order),
+      mainbar.y.label = 'Shared OTUs',
+      sets.x.label = 'OTUs per Group',
+      keep.order = T,
+      order.by = 'freq')
+
+
+```
+
+
+
+```{r}
+#Permanova 
+
+#Hymenaicidon
+Hymeniacidon <- subset_samples(Sponge_2, Sponge_species=="Hymeniacidon")
+set.seed(1)
+
+# Calculate bray curtis distance matrix
+Surface_bray <- phyloseq::distance(Hymeniacidon, method = "bray")
+
+# make a data frame from the sample_data
+sampledf <- data.frame(sample_data(Hymeniacidon))
+
+# Adonis test
+adonis(Surface_bray ~Replicate , data = sampledf)
+
+```
+
+
+```{r}
+#Haliclona
+Haliclona <- subset_samples(Sponge_2, Sponge_species=="Haliclona")
+set.seed(1)
+
+# Calculate bray curtis distance matrix
+Surface_bray <- phyloseq::distance(Haliclona, method = "bray")
+
+# make a data frame from the sample_data
+sampledf <- data.frame(sample_data(Haliclona))
+
+# Adonis test
+adonis(Surface_bray ~Replicate , data = sampledf)
+
+
+```
+
+
+```{r}
+#Isodictya
+Isodictya <- subset_samples(Sponge_2, Sponge_species=="Isodictya")
+set.seed(1)
+
+# Calculate bray curtis distance matrix
+Surface_bray <- phyloseq::distance(Isodictya, method = "bray")
+
+# make a data frame from the sample_data
+sampledf <- data.frame(sample_data(Isodictya))
+
+# Adonis test
+adonis(Surface_bray ~Replicate , data = sampledf, permutations = 999)
+
+
+```
+
+
+```{r}
+#between species
+
+set.seed(1)
+
+# Calculate bray curtis distance matrix
+Surface_bray <- phyloseq::distance(Sponge_2, method = "bray")
+
+# make a data frame from the sample_data
+sampledf <- data.frame(sample_data(Sponge_2))
+
+# Adonis test
+adonis(Surface_bray ~Sponge_species , data = sampledf)
+
+
+```
+
+
+```{r}
+#Alpha diversity
+GP <- prune_taxa (taxa_sums(Sponge_2) > 0, Sponge_2 )
+Richness <- estimate_richness(GP, split = TRUE, measures=c("Shannon", "Chao1", "observed", "inv_simpson"))
+write.csv(Richness, file = "Richness.csv")
+```
+
+
+```{r}
+Richness_edited <- read_xlsx("Diversity_mothur.xlsx")
+
+#Shannon
+
+p <- ggplot(Richness_edited, aes( x=Observed, y= shannon, color=Species)) + geom_point(size =2.5) 
+
+p1<- ggMarginal(p,  groupColour = TRUE, groupFill = TRUE) 
+
+p1 
+ggsave(filename = "Shanon.pdf")
+```
+
+
+```{r}
+#Anova to check if the difference between Sponge species diveristy
+
+# Compute the analysis of variance cruise
+res.aov <- aov(shannon ~ Species, data = Richness_edited)
+# Summary of the analysis
+summary(res.aov)
+```
+
+
+```{r}
+# 1. Homogeneity of variances
+plot(res.aov, 1)
+
+leveneTest(shannon ~ Species, data =  Richness_edited)
+
+
+#From the output above we can see that the p-value is not less than the significance level of 0.05. This means that there is no evidence to suggest that the variance across groups is statistically significantly different. Therefore, we can assume the homogeneity of variances in the different treatment groups.
+```
+
+
+```{r}
+#Tukey test
+TukeyHSD(res.aov)
+
+```
+
+
+```{r}
+#core
+core_otu_mat<- read_excel("core_Otu Table.xlsx")
+core_otu_mat <- core_otu_mat %>%
+    tibble::column_to_rownames("Otu") 
+
+ OTU_core = otu_table(core_otu_mat, taxa_are_rows = TRUE)
+
+Sponge_core <- phyloseq(OTU_core, TAX, samples)
+ 
+Sponge_core<- subset_samples(Sponge_core, Include=="yes")
+```
+
+
+```{r}
+#UpsR plot
+
+
+ps2.rare <- rarefy_even_depth(Sponge_core)
+
+ps2.venn <- merge_samples(ps2.rare, "Sponge_species", fun = sum)
+
+venn_obj <- as.data.frame(t(otu_table(ps2.venn)))
+venn_obj.binary <- sapply(venn_obj, function(x) ifelse(x > 0, 1, 0),
+                          USE.NAMES = T)
+rownames(venn_obj.binary) <- rownames(venn_obj)
+venn_obj.binary <- as.data.frame(venn_obj.binary)
+upset_order <- colnames(venn_obj.binary)
+shared_ASV_plot <- upset(venn_obj.binary, nsets = 7,
+      sets = rev(upset_order),
+      mainbar.y.label = 'Shared OTUs',
+      sets.x.label = 'OTUs per Group',
+      keep.order = T,
+      order.by = 'freq')
+shared_ASV_plot
+```
+
+

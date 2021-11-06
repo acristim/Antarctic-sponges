@@ -1,0 +1,115 @@
+---
+title: "MicroViz_sponges"
+author: "Antonia"
+date: "23/04/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(stringr)
+   library(ggplot2)
+   library(dplyr)
+   library(tidyr)
+   library(tibble)
+   library(readr)
+   library(maps)
+   library(glue)
+library("Cairo")
+library("cairoDevice")
+   library(phyloseq)
+library("readxl")
+library("openxlsx")
+library("gplots")
+library(forcats)
+library(mgcv)
+library(microbiome)
+library(microViz)
+
+
+```
+## visualizing composition - barplots
+
+```{r}
+Sponge_2 %>%
+  comp_barplot(
+    tax_level = "Order",  n_taxa = 12, 
+    merge_other = FALSE ) +
+  facet_wrap("Sponge_species", nrow = 3, scales = "free") +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) + theme(text = element_text(size=12), axis.text.x = element_text(angle=45, hjust=1))
+
+```
+
+
+```{r pressure, echo=FALSE}
+Merged_sp <- merge_samples(Sponge_2, "Sponge_species")
+```
+
+
+```{r pressure, echo=FALSE}
+Merged_sp %>%
+  tax_filter(min_prevalence = 1) %>%
+  comp_barplot(
+    tax_level = "Order",  n_taxa = 12, 
+    merge_other = FALSE  ) +
+ 
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) + theme(text = element_text(size=12), axis.text.x = element_text(angle=45, hjust=1, ), legend.position = "bottom")
+
+
+ggsave("Merged_Order_Microviz_2.pdf", dpi = 300,  width = 4, height = 4, scale=1.2)
+```
+
+## PCA ordination ##
+
+
+```{r pressure, echo=FALSE}
+# perform PCA ordination
+unconstrained_PCA <-
+Sponge_2 %>%
+  tax_filter( tax_level = "Order") %>%
+  tax_agg("Order") %>%
+  tax_transform("clr") %>%
+  ord_calc(method = "PCA") 
+
+# create plot
+pca_plot <- unconstrained_PCA %>%
+  ord_plot(
+    plot_taxa = 1:12, 
+    colour = "Sponge_species", size = 2,
+    tax_vec_length = 2,
+    auto_caption = TRUE
+  )
+
+# customise plot
+nudge <- position_nudge(y = 0.1)
+customised_plot <- pca_plot +
+  geom_text(aes(label = Replicate), position = nudge, size=2) +
+  scale_color_manual(values = c( "#e0301e","#44c45d", "#00688b")) 
+
+
+
+# show plot
+customised_plot
+
+#ggsave("PCA_order.pdf", dpi = 300,  width = 6, height = 4, scale=1.2)
+```
+
+
