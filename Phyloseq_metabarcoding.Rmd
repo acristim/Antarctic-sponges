@@ -1,7 +1,6 @@
 ---
 title: "Sponges Phyloseq"
 author: "Antonia"
-date: "9 June 2020"
 output: html_document
 ---
 
@@ -88,46 +87,6 @@ theme_set(theme_bw())
 ```
 
 
-```{r}
-#Total abundance Order
-  
-photo_abund <- filter_taxa(Sponge, function(x) sum(x > total*0.01) > 0, TRUE)
-photo_abund
-
-p <- plot_bar(photo_abund, x="Class", facet_grid = ~Sponge_species) 
-
-p + geom_bar(aes(fill=Class), stat="identity", position="stack") + theme(text = element_text(size=12),axis.text.x = element_text(angle=45, hjust=1)) + scale_fill_manual(values = mycolors) #+ ggsave(filename = "1702_allClass.pdf", width = 20, height = 7, dpi= 300)
-```
-
-
-```{r}
-#UpsR plot
-
-GP <- prune_taxa(taxa_sums(Sponge_2) > 0, Sponge_2 )
-ps2.rare <- rarefy_even_depth(GP)
-```
-
-
-```{r}
-ps2.venn <- merge_samples(ps2.rare, "Sponge_species", fun = sum)
-
-venn_obj <- as.data.frame(t(otu_table(ps2.venn)))
-venn_obj.binary <- sapply(venn_obj, function(x) ifelse(x > 0, 1, 0),
-                          USE.NAMES = T)
-rownames(venn_obj.binary) <- rownames(venn_obj)
-venn_obj.binary <- as.data.frame(venn_obj.binary)
-upset_order <- colnames(venn_obj.binary)
-shared_ASV_plot <- upset(venn_obj.binary, nsets = 6,
-      sets = rev(upset_order),
-      mainbar.y.label = 'Shared OTUs',
-      sets.x.label = 'OTUs per Group',
-      keep.order = T,
-      order.by = 'freq')
-
-
-```
-
-
 
 ```{r}
 #Permanova 
@@ -201,15 +160,6 @@ adonis(Surface_bray ~Sponge_species , data = sampledf)
 
 ```
 
-
-```{r}
-#Alpha diversity
-GP <- prune_taxa (taxa_sums(Sponge_2) > 0, Sponge_2 )
-Richness <- estimate_richness(GP, split = TRUE, measures=c("Shannon", "Chao1", "observed", "inv_simpson"))
-write.csv(Richness, file = "Richness.csv")
-```
-
-
 ```{r}
 Richness_edited <- read_xlsx("Diversity_mothur.xlsx")
 
@@ -225,7 +175,7 @@ ggsave(filename = "Shanon.pdf")
 
 
 ```{r}
-#Anova to check if the difference between Sponge species diveristy
+#Anova to check if the difference between Sponge species diversity
 
 # Compute the analysis of variance cruise
 res.aov <- aov(shannon ~ Species, data = Richness_edited)
